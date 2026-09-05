@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Creator Campaign Knowledge Assistant</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #f4f6f8; color: #1f2933; }
+    main { max-width: 900px; margin: 48px auto; padding: 0 20px; }
+    h1 { margin-bottom: 8px; }
+    p { color: #52606d; }
+    form, .result { background: white; border: 1px solid #d9e2ec; border-radius: 8px; padding: 24px; margin-top: 20px; }
+    textarea, select, button { font: inherit; }
+    textarea { width: 100%; min-height: 100px; box-sizing: border-box; padding: 12px; border: 1px solid #bcccdc; border-radius: 6px; }
+    select { margin: 12px 0; padding: 8px; }
+    button { display: block; padding: 10px 18px; border: 0; border-radius: 6px; background: #2563eb; color: white; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    .status { font-weight: 600; }
+    .citation { padding: 8px 0; border-top: 1px solid #e5e7eb; }
+    pre { white-space: pre-wrap; word-break: break-word; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Creator Campaign Knowledge Assistant</h1>
+  <p>受控检索项目资料，回答必须保留可回指的来源。</p>
+  <form id="ask-form">
+    <textarea id="question" required placeholder="例如：Creator 筛选需要关注什么？"></textarea>
+    <select id="user-group">
+      <option value="strategy">strategy</option>
+      <option value="operations">operations</option>
+      <option value="legal">legal</option>
+    </select>
+    <button id="submit" type="submit">查询资料</button>
+  </form>
+  <section id="result" class="result" hidden></section>
+</main>
+<script>
+  const form = document.querySelector('#ask-form');
+  const button = document.querySelector('#submit');
+  const result = document.querySelector('#result');
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    button.disabled = true;
+    result.hidden = false;
+    result.textContent = '查询中...';
+    try {
+      const response = await fetch('/ask', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          question: document.querySelector('#question').value,
+          user_group: document.querySelector('#user-group').value
+        })
+      });
+      const body = await response.json();
+      result.innerHTML = '';
+      const status = document.createElement('div');
+      status.className = 'status';
+      status.textContent = `状态：${body.status}`;
+      result.append(status);
+      const answer = document.createElement('pre');
+      answer.textContent = body.answer || body.reason || '没有可展示的回答';
+      result.append(answer);
+      (body.citations || []).forEach((citation) => {
+        const item = document.createElement('div');
+        item.className = 'citation';
+        item.textContent = `${citation.document_id} ${citation.version} ${citation.section} 第 ${citation.page} 页`;
+        result.append(item);
+      });
+    } catch (error) {
+      result.textContent = '请求失败，请确认 API 和 Elasticsearch 已启动。';
+    } finally {
+      button.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

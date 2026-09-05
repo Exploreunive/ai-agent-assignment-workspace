@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Creator Campaign Requirement Drafting</title>
+  <style>
+    :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; background: #f4f6f8; color: #1f2933; }
+    main { max-width: 1180px; margin: 0 auto; padding: 28px; }
+    h1 { margin: 0 0 8px; font-size: 26px; }
+    h2 { font-size: 18px; margin: 0 0 12px; }
+    p { color: #52606d; }
+    section { background: white; border: 1px solid #d9e2ec; padding: 18px; margin-top: 18px; border-radius: 8px; }
+    textarea, input, select { box-sizing: border-box; width: 100%; border: 1px solid #bcccdc; border-radius: 6px; padding: 9px; font: inherit; }
+    textarea { min-height: 150px; resize: vertical; }
+    button { border: 0; border-radius: 6px; background: #147d92; color: white; padding: 9px 14px; cursor: pointer; }
+    button.secondary { background: #52606d; }
+    button.danger { background: #c05621; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .field, .material, .issue { border-top: 1px solid #e4e7eb; padding: 12px 0; }
+    .field:first-child, .material:first-child, .issue:first-child { border-top: 0; }
+    .meta { font-size: 12px; color: #627d98; }
+    .blocking { color: #b83280; } .warning { color: #975a16; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    @media (max-width: 800px) { main { padding: 16px; } .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Creator Campaign Requirement Drafting</h1>
+  <p>导入多种材料，查看 AI 候选及来源，处理冲突后由授权人员确认。</p>
+  <section>
+    <h2>导入材料</h2>
+    <div class="grid">
+      <label>Request Key<input id="requestKey" value="demo-a-001"></label>
+      <label>创建人<input id="createdBy" value="alice"></label>
+    </div>
+    <p class="meta">材料 JSON 可以直接替换为真实 Gmail、Excel、会议纪要或附件解析器的输出。</p>
+    <textarea id="materials"></textarea>
+    <div class="actions"><button id="import">创建 Draft</button></div>
+    <pre id="message" class="meta"></pre>
+  </section>
+  <section id="draftPanel" hidden>
+    <div class="grid">
+      <div><h2>候选字段</h2><div id="fields"></div></div>
+      <div><h2>原始材料</h2><div id="materialsView"></div><h2>待处理问题</h2><div id="issues"></div></div>
+    </div>
+    <div class="actions">
+      <select id="role"><option value="viewer">viewer</option><option value="business_manager">business_manager</option><option value="project_owner">project_owner</option></select>
+      <input id="operator" value="manager" placeholder="操作人">
+      <button id="confirm">确认当前版本</button>
+      <button id="return" class="danger">退回当前版本</button>
+    </div>
+  </section>
+</main>
+<script>
+const sample = [
+  {material_id:"email-001",material_type:"email",file_name:"client-email.txt",content:"客户计划在美国推广桌面多色3D打印机，预算约160000美元，主要考虑YouTube和TikTok。预计2026-11-15上市，合作约20位Creator，内容使用权为三个月。"},
+  {material_id:"excel-001",material_type:"excel",file_name:"creator-plan.xlsx",content:"目标市场：美国；Creator数量：20；计划上线日期：2026-11-29；渠道：YouTube、TikTok。"},
+  {material_id:"chat-001",material_type:"chat",file_name:"client-chat.txt",content:"希望覆盖Maker、家庭DIY、教育和科技评测人群，重点是让低成本入门用户也能理解和使用产品。"},
+  {material_id:"meeting-001",material_type:"meeting",file_name:"meeting-notes.docx",content:"会议中有人建议同时覆盖加拿大市场，但客户尚未正式确认。"},
+  {material_id:"attachment-001",material_type:"attachment",file_name:"product-requirement.pdf",content:"产品传播重点：必须突出多色打印能力。"}
+];
+const $ = id => document.getElementById(id);
+let draft;
+$("materials").value = JSON.stringify(sample, null, 2);
+function show(text, error=false) { $("message").textContent = text; $("message").style.color = error ? "#b83280" : "#147d92"; }
+function render() {
+  $("draftPanel").hidden = false;
+  $("fields").replaceChildren(...draft.fields.map(field => {
+    const box = document.createElement("div"); box.className = "field";
+    const title = document.createElement("strong"); title.textContent = field.field_name; box.append(title);
+    const input = document.createElement("input"); input.value = field.value == null ? "" : typeof field.value === "string" ? field.value : JSON.stringify(field.value); input.dataset.field = field.field_name; box.append(input);
+    const meta = document.createElement("div"); meta.className = "meta"; meta.textContent = `${field.fact_type} / ${field.status} / 来源：${field.source_material_id || "人工修改"}`; box.append(meta);
+    const save = document.createElement("button"); save.className = "secondary"; save.textContent = "保存字段"; save.onclick = () => saveField(field.field_name, input.value); box.append(save); return box;
+  }));
+  $("materialsView").replaceChildren(...draft.materials.map(item => { const el=document.createElement("div"); el.className="material"; el.textContent=`${item.material_type} | ${item.file_name}\n${item.content}`; return el; }));
+  $("issues").replaceChildren(...draft.issues.map(item => { const el=document.createElement("div"); el.className=`issue ${item.severity}`; el.textContent=`${item.code}: ${item.message}`; return el; }));
+  show(`Draft ${draft.draft_id} | v${draft.version} | ${draft.status}`);
+}
+async function call(path, options={}) { const response=await fetch(path,{headers:{"Content-Type":"application/json"},...options}); const body=await response.json(); if(!response.ok) throw new Error(body.detail || "请求失败"); return body; }
+$("import").onclick = async () => { try { draft=await call("/business/drafts/import",{method:"POST",body:JSON.stringify({request_key:$("requestKey").value,created_by:$("createdBy").value,materials:JSON.parse($("materials").value)})}); render(); } catch(e) { show(e.message,true); } };
+async function saveField(fieldName, value) { try { let parsed=value; try { parsed=JSON.parse(value); } catch (_) {} draft=await call(`/business/drafts/${draft.draft_id}/fields/${fieldName}`,{method:"PATCH",body:JSON.stringify({version:draft.version,operator_id:$("operator").value,value:parsed})}); render(); } catch(e) { show(e.message,true); } }
+$("confirm").onclick = async () => { try { draft=await call(`/business/drafts/${draft.draft_id}/confirm`,{method:"POST",body:JSON.stringify({version:draft.version,operator_id:$("operator").value,operator_role:$("role").value})}); render(); } catch(e) { show(e.message,true); } };
+$("return").onclick = async () => { try { draft=await call(`/business/drafts/${draft.draft_id}/return`,{method:"POST",body:JSON.stringify({version:draft.version,operator_id:$("operator").value,operator_role:$("role").value,note:"需要补充客户确认信息"})}); render(); } catch(e) { show(e.message,true); } };
+</script>
+</body>
+</html>

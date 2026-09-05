@@ -1,0 +1,7 @@
+.venv/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+**/.es-data*/
+**/.es-logs*/
+**/.es.pid

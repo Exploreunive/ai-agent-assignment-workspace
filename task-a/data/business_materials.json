@@ -1,0 +1,32 @@
+[
+  {
+    "material_id": "email-001",
+    "material_type": "email",
+    "file_name": "client-email.txt",
+    "content": "客户计划在美国推广桌面多色3D打印机，预算约160000美元，主要考虑YouTube和TikTok。预计2026-11-15上市，合作约20位Creator，内容使用权为三个月。"
+  },
+  {
+    "material_id": "excel-001",
+    "material_type": "excel",
+    "file_name": "creator-plan.xlsx",
+    "content": "目标市场：美国；Creator数量：20；计划上线日期：2026-11-29；渠道：YouTube、TikTok。"
+  },
+  {
+    "material_id": "chat-001",
+    "material_type": "chat",
+    "file_name": "client-chat.txt",
+    "content": "希望覆盖Maker、家庭DIY、教育和科技评测人群，重点是让低成本入门用户也能理解和使用产品。"
+  },
+  {
+    "material_id": "meeting-001",
+    "material_type": "meeting",
+    "file_name": "meeting-notes.docx",
+    "content": "会议中有人建议同时覆盖加拿大市场，但客户尚未正式确认。"
+  },
+  {
+    "material_id": "attachment-001",
+    "material_type": "attachment",
+    "file_name": "product-requirement.pdf",
+    "content": "产品传播重点：必须突出多色打印能力。"
+  }
+]

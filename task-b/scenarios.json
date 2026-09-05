@@ -1,0 +1,50 @@
+{
+  "scenarios": [
+    {
+      "id": "S1",
+      "task": "从中英文消息提取固定字段并进入人工确认",
+      "facts": {
+        "daily_items": 800,
+        "fields": 8,
+        "formats": "mostly stable",
+        "error_cost": "medium",
+        "knowledge_update": "none",
+        "labeled_examples": 60
+      }
+    },
+    {
+      "id": "S2",
+      "task": "对每周更新的资料进行带引用问答",
+      "facts": {
+        "documents": 30,
+        "weekly_changes": 6,
+        "must_cite": true,
+        "unknown_should_abstain": true,
+        "permissions": "two groups"
+      }
+    },
+    {
+      "id": "S3",
+      "task": "围绕主题检索资料并生成带引用内容草稿",
+      "facts": {
+        "tools": [
+          "search_documents",
+          "get_source"
+        ],
+        "max_revision_rounds": 2,
+        "human_approval": true,
+        "external_publish": false
+      }
+    }
+  ],
+  "allowed_approaches": [
+    "rules",
+    "prompt",
+    "RAG",
+    "fine_tuning",
+    "fixed_workflow",
+    "tool_calling_agent",
+    "hybrid"
+  ]
+}
+

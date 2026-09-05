@@ -1,0 +1,1 @@
+"""Open assignment implementation package."""

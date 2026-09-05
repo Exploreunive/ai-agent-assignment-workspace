@@ -1,0 +1,1 @@
+"""Professional task B implementation."""

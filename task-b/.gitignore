@@ -1,0 +1,9 @@
+.es-data/
+.es-data-*/
+.es-logs/
+.es-logs-*/
+.es.pid
+.pytest_cache/
+__pycache__/
+*.pyc
+.venv/

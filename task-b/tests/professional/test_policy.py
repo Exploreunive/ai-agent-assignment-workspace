@@ -78,4 +78,4 @@ def test_input_schema_rejects_empty_query_and_unknown_group():
     with pytest.raises(ValidationError):
         SearchToolArguments(query="")
     with pytest.raises(ValidationError):
-        AskRequest(question="正常问题", user_group="unknown")
+        AskRequest(question="")

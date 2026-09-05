@@ -12,6 +12,8 @@
 
 AI 使用与验证：AI 用于拆解题目约束、比较 S1-S3 的第一版方案、检查反例覆盖、生成局部测试草稿和辅助阅读已有 Agent 项目。保留了“按复杂度递进”“权限、版本和引用由程序控制”的建议；拒绝了“所有场景都做完全自主 Agent”“把所有资料直接放进 Prompt”“让模型决定权限和有效版本”等建议。关键结果通过本地 Elasticsearch 的真实过滤/检索、同日版本冲突测试、权限/过期测试、Prompt Injection 测试和 API 测试验证。
 
+工程化加固：用户组不从请求体信任，而由 `X-User-Group` 模拟已认证上下文；`llm_adapter.py` 保留真实 OpenAI-compatible `tools`/`message.tool_calls` 接入边界，默认仍使用 Mock 以保证无密钥可测试；外部资料以数据块形式注入，并经过清洗和引用回指校验。
+
 未完成项与后续优先级：第一版没有接入真实模型、公司内部系统或 Embedding 服务，也没有实现 S3 的多轮草稿 Agent。若继续完善，优先接入真实 OpenAI-compatible 模型适配器并保留现有 Runtime 校验，再增加 S3 的 `get_source` 两轮补取和人工审批；不会先扩展成无限自主 Agent。
 
 最小运行顺序：

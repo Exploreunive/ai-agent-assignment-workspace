@@ -2,7 +2,7 @@ from datetime import date
 import os
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse
 
 from agent_assignment.professional.retrieval import EsDocumentRepository
@@ -29,6 +29,8 @@ def index():
 
 
 @app.post("/ask", response_model=AskResponse)
-def ask(request: AskRequest):
+def ask(request: AskRequest, x_user_group: str = Header(..., alias="X-User-Group")):
+    if x_user_group not in {"strategy", "legal", "operations"}:
+        raise HTTPException(status_code=403, detail="认证上下文中的用户组无效")
     today = date.fromisoformat(os.getenv("DEMO_TODAY", "2026-09-05"))
-    return workflow.ask(request.question, request.user_group, today)
+    return workflow.ask(request.question, x_user_group, today)

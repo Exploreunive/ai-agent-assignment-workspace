@@ -3,6 +3,7 @@ import pytest
 from agent_assignment.business.draft_service import (
     BlockingIssues,
     DraftService,
+    IdempotencyConflict,
     InvalidTransition,
     NotAuthorized,
     VersionConflict,
@@ -53,6 +54,16 @@ def test_import_is_idempotent_and_keeps_one_draft():
     assert first.version == second.version == 1
 
 
+def test_same_request_key_with_changed_materials_is_rejected():
+    service = DraftService()
+    service.import_materials(complete_request("fingerprint-request"))
+    changed = complete_request("fingerprint-request")
+    changed.materials[0].content += " 客户补充了付款条件。"
+
+    with pytest.raises(IdempotencyConflict):
+        service.import_materials(changed)
+
+
 def test_blocking_issues_prevent_confirmation_until_manual_revisions():
     service = DraftService()
     draft = service.import_materials(blocked_request("revision-request"))
@@ -64,6 +75,8 @@ def test_blocking_issues_prevent_confirmation_until_manual_revisions():
         UpdateFieldRequest(version=1, operator_id="alice", value="2026-11-15"),
     )
     assert revised.version == 2
+    assert revised.audit_log[-1].action == "field_update"
+    assert revised.audit_log[-1].operator_id == "alice"
     with pytest.raises(BlockingIssues):
         service.confirm(
             draft.draft_id,
@@ -92,6 +105,7 @@ def test_confirm_requires_role_and_current_version_then_records_operator():
 
     assert confirmed.status == "confirmed"
     assert confirmed.confirmed_by == "manager"
+    assert [item.action for item in confirmed.audit_log] == ["import", "confirm"]
     with pytest.raises(InvalidTransition):
         service.confirm(
             draft.draft_id,

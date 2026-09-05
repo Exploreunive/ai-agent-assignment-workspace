@@ -7,6 +7,7 @@ from agent_assignment.business.draft_service import (
     BlockingIssues,
     DraftNotFound,
     DraftService,
+    IdempotencyConflict,
     InvalidTransition,
     NotAuthorized,
     VersionConflict,
@@ -29,7 +30,7 @@ def _error(exc: Exception) -> HTTPException:
         return HTTPException(status_code=404, detail="Draft 不存在")
     if isinstance(exc, NotAuthorized):
         return HTTPException(status_code=403, detail=str(exc))
-    if isinstance(exc, VersionConflict):
+    if isinstance(exc, (VersionConflict, IdempotencyConflict)):
         return HTTPException(status_code=409, detail=str(exc))
     if isinstance(exc, (BlockingIssues, InvalidTransition)):
         return HTTPException(status_code=409, detail=str(exc))

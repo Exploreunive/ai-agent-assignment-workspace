@@ -10,6 +10,7 @@
 用户问题
   -> 受控模型生成 search_documents 参数
   -> Runtime 校验工具名和参数
+  -> 从认证上下文获取用户组
   -> Elasticsearch 先做用户组与有效期过滤
   -> BM25 检索候选资料
   -> 结果按 document_id 选择当前版本
@@ -43,12 +44,13 @@ ES_URL=http://127.0.0.1:19200 ./scripts/import_professional_es.sh
 PYTHONPATH=src uv run --python 3.12 uvicorn agent_assignment.api.app:app --reload --port 18081
 ```
 
-打开 `http://127.0.0.1:18081/`，或直接请求：
+打开 `http://127.0.0.1:18081/`，或直接请求（用户组来自认证上下文请求头）：
 
 ```bash
 curl -sS http://127.0.0.1:18081/ask \
   -H 'Content-Type: application/json' \
-  -d '{"question":"Creator 筛选需要关注什么？","user_group":"strategy"}'
+  -H 'X-User-Group: strategy' \
+  -d '{"question":"Creator 筛选需要关注什么？"}'
 ```
 
 正常结果会返回 `status=answered`、回答和 `CREATOR-SELECTION:v2:3.1` 引用；权限不匹配、资料过期或没有可靠证据时返回 `status=abstained`。
@@ -81,14 +83,14 @@ uv run --python 3.12 pytest -q tests/professional
 ## Mock 边界
 
 - 真实实现：Elasticsearch 索引、mapping、过滤、BM25 查询、版本选择、权限过滤、有效期过滤、引用校验和拒答。
-- Mock：模型的语义决策和最终自然语言生成。`MockAgentModel` 模拟模型生成 `search_documents` 的结构化调用，`MockAnswerer` 模拟回答生成；两者都可以替换为 OpenAI-compatible 模型适配器。
+- Mock：模型的语义决策和最终自然语言生成。`MockAgentModel` 模拟模型生成 `search_documents` 的结构化调用，`MockAnswerer` 模拟回答生成；`llm_adapter.py` 提供可选的 OpenAI-compatible `tools`/`tool_calls` 适配器。
 - 未接入：公司内部 GlobalStar 系统、真实客户资料、外部生产模型、Embedding 服务和飞书。
 
-工具契约位于 `src/agent_assignment/professional/tool_contracts.py`：它是给真实模型看的工具名称、用途和 JSON Schema；`schemas.py` 负责校验模型返回的参数，`workflow.py` 负责 Runtime 调度。当前默认模型是 Mock，因此不会实际请求模型厂商 API，但工具边界和参数契约已经按 OpenAI-compatible `tools` 请求格式写出。
+工具契约位于 `src/agent_assignment/professional/tool_contracts.py`：它是给真实模型看的工具名称、用途和 JSON Schema；`schemas.py` 负责校验模型返回的参数，`workflow.py` 负责 Runtime 调度。`llm_adapter.py` 展示真实 HTTP 请求、`message.tool_calls` 解析和外部资料数据边界。当前默认模型仍是 Mock，因此不会实际请求模型厂商 API。
 
 ## 为什么没有一开始做完全自主 Agent
 
-S2 的输入是每周更新的资料，核心风险是引用过期内容和越权内容。第一版优先保证权限、版本、证据和拒答可测试。S3 才适合开放 `search_documents` 与 `get_source` 两个工具，让模型在最多两轮内自主检索、补取来源并生成待人工审批的草稿。
+S2 的输入是每周更新的资料，核心风险是引用过期内容和越权内容。第一版优先保证认证上下文、权限、版本、证据和拒答可测试。S3 才适合开放 `search_documents` 与 `get_source` 两个工具，让模型在最多两轮内自主检索、补取来源并生成待人工审批的草稿。
 
 ## 面试演示顺序
 

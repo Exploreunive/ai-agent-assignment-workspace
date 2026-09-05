@@ -47,10 +47,12 @@
     try {
       const response = await fetch('/ask', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Group': document.querySelector('#user-group').value
+        },
         body: JSON.stringify({
-          question: document.querySelector('#question').value,
-          user_group: document.querySelector('#user-group').value
+          question: document.querySelector('#question').value
         })
       });
       const body = await response.json();

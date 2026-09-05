@@ -45,9 +45,22 @@ class Issue(BaseModel):
     candidate_ids: List[str] = Field(default_factory=list)
 
 
+class AuditEvent(BaseModel):
+    action: Literal["import", "field_update", "confirm", "return"]
+    operator_id: str
+    operator_role: Optional[str] = None
+    version: int = Field(ge=1)
+    field_name: Optional[str] = None
+    old_value: Any = None
+    new_value: Any = None
+    note: Optional[str] = None
+    occurred_at: datetime
+
+
 class Draft(BaseModel):
     draft_id: str
     request_key: str
+    request_fingerprint: str
     version: int = Field(ge=1)
     status: DraftStatus
     created_by: str
@@ -58,6 +71,7 @@ class Draft(BaseModel):
     materials: List[Material]
     fields: List[FieldCandidate]
     issues: List[Issue]
+    audit_log: List[AuditEvent] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

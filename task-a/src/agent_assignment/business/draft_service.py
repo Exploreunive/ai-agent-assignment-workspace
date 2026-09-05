@@ -1,5 +1,7 @@
 from copy import deepcopy
 from datetime import datetime, timezone
+import hashlib
+import json
 from typing import Dict, List, Optional
 from uuid import uuid4
 
@@ -9,6 +11,7 @@ from .schemas import (
     ConfirmationRequest,
     Draft,
     FieldCandidate,
+    AuditEvent,
     ImportMaterialsRequest,
     ReturnRequest,
     UpdateFieldRequest,
@@ -39,6 +42,10 @@ class BlockingIssues(DraftError):
     pass
 
 
+class IdempotencyConflict(DraftError):
+    pass
+
+
 class DraftService:
     """内存版 Draft 仓储，接口和状态转换可替换为 PostgreSQL。"""
 
@@ -53,16 +60,27 @@ class DraftService:
     def _now() -> datetime:
         return datetime.now(timezone.utc)
 
+    @staticmethod
+    def _fingerprint(request: ImportMaterialsRequest) -> str:
+        payload = [item.model_dump(mode="json") for item in request.materials]
+        encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
     def import_materials(self, request: ImportMaterialsRequest) -> Draft:
         existing_id = self._request_index.get(request.request_key)
+        fingerprint = self._fingerprint(request)
         if existing_id:
-            return self.current(existing_id)
+            existing = self.current(existing_id)
+            if existing.request_fingerprint != fingerprint:
+                raise IdempotencyConflict("相同 request_key 对应的材料内容已发生变化")
+            return existing
 
         materials, fields = self.extractor.extract(request.materials)
         now = self._now()
         draft = Draft(
             draft_id=f"draft-{uuid4().hex[:10]}",
             request_key=request.request_key,
+            request_fingerprint=fingerprint,
             version=1,
             status="draft",
             created_by=request.created_by,
@@ -70,6 +88,13 @@ class DraftService:
             materials=materials,
             fields=fields,
             issues=check_missing_and_conflicts(fields),
+            audit_log=[AuditEvent(
+                action="import",
+                operator_id=request.created_by,
+                version=1,
+                note="创建 Draft 并保存原始材料与 AI 候选",
+                occurred_at=now,
+            )],
             created_at=now,
             updated_at=now,
         )
@@ -125,6 +150,16 @@ class DraftService:
         revised.return_note = None
         revised.fields = fields
         revised.issues = check_missing_and_conflicts(fields)
+        revised.audit_log.append(AuditEvent(
+            action="field_update",
+            operator_id=operator_id,
+            version=revised.version,
+            field_name=fields[-1].field_name,
+            old_value=[item.value for item in current.fields if item.field_name == fields[-1].field_name and item.status != "rejected"],
+            new_value=fields[-1].value,
+            note="人工修改候选字段，旧候选保留在历史版本中",
+            occurred_at=now,
+        ))
         revised.updated_at = now
         self._drafts[current.draft_id].append(revised)
         return deepcopy(revised)
@@ -150,6 +185,14 @@ class DraftService:
             for item in confirmed.fields
         ]
         confirmed.updated_at = self._now()
+        confirmed.audit_log.append(AuditEvent(
+            action="confirm",
+            operator_id=request.operator_id,
+            operator_role=request.operator_role,
+            version=confirmed.version,
+            note="人工确认 Draft 版本",
+            occurred_at=confirmed.confirmed_at or self._now(),
+        ))
         self._drafts[draft_id].append(confirmed)
         return deepcopy(confirmed)
 
@@ -164,5 +207,13 @@ class DraftService:
         returned.updated_by = request.operator_id
         returned.return_note = request.note
         returned.updated_at = self._now()
+        returned.audit_log.append(AuditEvent(
+            action="return",
+            operator_id=request.operator_id,
+            operator_role=request.operator_role,
+            version=returned.version,
+            note=request.note,
+            occurred_at=returned.updated_at,
+        ))
         self._drafts[draft_id].append(returned)
         return deepcopy(returned)

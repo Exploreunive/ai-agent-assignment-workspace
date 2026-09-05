@@ -39,7 +39,6 @@ class Citation(BaseModel):
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=500)
-    user_group: Literal["strategy", "legal", "operations"]
 
 
 class SearchToolArguments(BaseModel):
